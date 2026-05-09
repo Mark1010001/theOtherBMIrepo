@@ -8,6 +8,7 @@ const API_BASE = 'http://localhost:8000/api';
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
+  const [isLightMode, setIsLightMode] = useState(localStorage.getItem('theme') === 'light');
   const [activeStandard, setActiveStandard] = useState('Global WHO Standard');
   const [populationData, setPopulationData] = useState(null);
   const [userResults, setUserResults] = useState(null);
@@ -71,12 +72,22 @@ function App() {
     }
   }, [metrics, activeStandard, token]);
 
+  const toggleTheme = () => {
+    const newMode = !isLightMode;
+    setIsLightMode(newMode);
+    localStorage.setItem('theme', newMode ? 'light' : 'dark');
+  };
+
   if (!token) {
-    return <Login onLoginSuccess={(t) => setToken(t)} />;
+    return (
+      <div className={isLightMode ? 'light' : ''}>
+        <Login onLoginSuccess={(t) => setToken(t)} />
+      </div>
+    );
   }
 
   return (
-    <div className="flex h-screen bg-black overflow-hidden font-sans">
+    <div className={`flex h-screen bg-bg-main overflow-hidden font-sans transition-colors duration-300 ${isLightMode ? 'light' : ''}`}>
       <Sidebar
         metrics={metrics}
         setMetrics={setMetrics}
@@ -85,13 +96,15 @@ function App() {
         setActiveStandard={setActiveStandard}
       />
 
-      <main className="flex-1 overflow-y-auto custom-scrollbar">
+      <main className="flex-1 overflow-y-auto custom-scrollbar bg-bg-main">
         {populationData && (
           <Dashboard
             data={populationData}
             userResults={userResults}
             userMetrics={metrics}
             onLogout={handleLogout}
+            isLightMode={isLightMode}
+            toggleTheme={toggleTheme}
           />
         )}
       </main>
