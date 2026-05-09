@@ -1,0 +1,249 @@
+import React from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  ScatterChart, Scatter, Cell, ReferenceLine, ReferenceArea, LabelList
+} from 'recharts';
+
+const CATEGORY_COLORS = {
+  "Underweight": "#378ADD",
+  "Normal":      "#d4f01e",
+  "Overweight":  "#BA7517",
+  "Obese":       "#E24B4A",
+};
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[#111] border border-[#222] p-3 rounded-lg text-[11px] shadow-2xl">
+        <p className="font-bold text-white mb-2 uppercase tracking-widest">{label}</p>
+        {payload.map((p, i) => (
+          <div key={i} className="flex items-center gap-2 mb-1">
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }}></div>
+            <p className="text-[#888]">
+              {p.name}: <span className="text-white font-bold">{p.value}</span>
+            </p>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
+const Charts = ({ activeTab, patterns, chartData, userResults, userMetrics }) => {
+  if (!chartData || !patterns) return <div className="text-[#444] text-[11px] font-bold uppercase tracking-widest">Loading Analytics...</div>;
+
+  const renderBMIHistogram = () => {
+    const bins = Array.from({ length: 18 }, (_, i) => 12 + i * 2);
+    const binnedData = bins.map(bin => {
+      const count = chartData.filter(d => d.BMI >= bin && d.BMI < bin + 2).length;
+      const center = bin + 1;
+      let cat = "Normal";
+      if (center < 18.5) cat = "Underweight";
+      else if (center < 25) cat = "Normal";
+      else if (center < 30) cat = "Overweight";
+      else cat = "Obese";
+
+      return {
+        range: `${bin}-${bin+2}`,
+        count,
+        category: cat,
+        fill: CATEGORY_COLORS[cat]
+      };
+    });
+
+    return (
+      <div className="h-[340px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={binnedData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="0" stroke="#1a1a1a" vertical={false} />
+            <XAxis
+                dataKey="range"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 9, fill: '#444', fontWeight: 'bold' }}
+            />
+            <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 9, fill: '#444', fontWeight: 'bold' }}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#ffffff05' }} />
+            <Bar dataKey="count" name="Users" radius={[2, 2, 0, 0]}>
+              {binnedData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.fill} fillOpacity={0.8} />
+              ))}
+            </Bar>
+            {userResults && (
+              <ReferenceLine
+                x={`${Math.floor(userResults.bmi/2)*2}-${Math.floor(userResults.bmi/2)*2+2}`}
+                stroke="white"
+                strokeWidth={1}
+                strokeDasharray="3 3"
+                label={{ position: 'top', value: 'YOU', fill: 'white', fontSize: 9, fontWeight: 'bold' }}
+              />
+            )}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  };
+
+  const renderBAIHistogram = () => {
+    const bins = Array.from({ length: 19 }, (_, i) => 5 + i * 3);
+    const binnedData = bins.map(bin => {
+      const count = chartData.filter(d => d.BAI >= bin && d.BAI < bin + 3).length;
+      const center = bin + 1.5;
+      let cat = "Normal";
+      if (center < 8) cat = "Underweight";
+      else if (center < 21) cat = "Normal";
+      else if (center < 26) cat = "Overweight";
+      else cat = "Obese";
+
+      return {
+        range: `${bin}-${bin+3}`,
+        count,
+        category: cat,
+        fill: CATEGORY_COLORS[cat]
+      };
+    });
+
+    return (
+      <div className="h-[340px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={binnedData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="0" stroke="#1a1a1a" vertical={false} />
+            <XAxis
+                dataKey="range"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 9, fill: '#444', fontWeight: 'bold' }}
+            />
+            <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 9, fill: '#444', fontWeight: 'bold' }}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#ffffff05' }} />
+            <Bar dataKey="count" name="Users" radius={[2, 2, 0, 0]}>
+              {binnedData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.fill} fillOpacity={0.8} />
+              ))}
+            </Bar>
+            {userResults && (
+              <ReferenceLine
+                x={`${Math.floor(userResults.bai/3)*3}-${Math.floor(userResults.bai/3)*3+3}`}
+                stroke="white"
+                strokeWidth={1}
+                strokeDasharray="3 3"
+                label={{ position: 'top', value: 'YOU', fill: 'white', fontSize: 9, fontWeight: 'bold' }}
+              />
+            )}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  };
+
+  const renderAvgBMIByAge = () => {
+    const data = Object.entries(patterns.avg_bmi_by_age).map(([age, bmi]) => ({
+      age,
+      bmi,
+      fill: bmi < 18.5 ? CATEGORY_COLORS.Underweight : (bmi < 25 ? CATEGORY_COLORS.Normal : (bmi < 30 ? CATEGORY_COLORS.Overweight : CATEGORY_COLORS.Obese))
+    }));
+
+    return (
+      <div className="h-[340px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="0" stroke="#1a1a1a" vertical={false} />
+            <XAxis dataKey="age" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#444', fontWeight: 'bold' }} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#444', fontWeight: 'bold' }} domain={[0, 'dataMax + 5']} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#ffffff05' }} />
+            <Bar dataKey="bmi" name="Avg BMI" radius={[2, 2, 0, 0]}>
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.fill} fillOpacity={0.8} />
+              ))}
+              <LabelList dataKey="bmi" position="top" fill="#666" fontSize={9} fontWeight="bold" />
+            </Bar>
+            <ReferenceArea y1={18.5} y2={25} fill="#d4f01e" fillOpacity={0.03} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  };
+
+  const renderAgeVSBMI = () => {
+    const data = chartData.map(d => ({
+      age: d.Age,
+      bmi: d.BMI,
+      category: d.Risk_Category,
+      fill: CATEGORY_COLORS[d.Risk_Category] || '#fff'
+    }));
+
+    return (
+      <div className="h-[340px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <ScatterChart margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
+            <CartesianGrid strokeDasharray="0" stroke="#1a1a1a" />
+            <XAxis type="number" dataKey="age" name="Age" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#444', fontWeight: 'bold' }} domain={[18, 70]} />
+            <YAxis type="number" dataKey="bmi" name="BMI" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#444', fontWeight: 'bold' }} />
+            <Tooltip content={<CustomTooltip />} />
+            <Scatter name="Users" data={data}>
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.fill} fillOpacity={0.6} />
+              ))}
+            </Scatter>
+            {userResults && (
+              <ReferenceLine y={userResults.bmi} stroke="white" strokeDasharray="3 3" label={{ value: 'YOU', fill: 'white', fontSize: 9, fontWeight: 'bold', position: 'right' }} />
+            )}
+          </ScatterChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  };
+
+  const renderRiskDisparity = () => {
+    const raceColors = {
+      "White/Other": "#7ec8e3",
+      "Asian":       "#f4a261",
+      "Black":       "#a29bfe",
+    };
+
+    const data = patterns.disparity_by_race.map(d => ({
+        race: d.Race,
+        count: d.Reclassified_Count,
+        fill: raceColors[d.Race] || "#aaa"
+    }));
+
+    return (
+      <div className="h-[340px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="0" stroke="#1a1a1a" vertical={false} />
+            <XAxis dataKey="race" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#444', fontWeight: 'bold' }} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#444', fontWeight: 'bold' }} domain={[0, 'dataMax + 3']} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#ffffff05' }} />
+            <Bar dataKey="count" name="Reclassified Users" radius={[2, 2, 0, 0]}>
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.fill} fillOpacity={0.8} />
+              ))}
+              <LabelList dataKey="count" position="top" fill="#666" fontSize={10} fontWeight="bold" />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  };
+
+  switch (activeTab) {
+    case 'BMI DISTRIBUTION': return renderBMIHistogram();
+    case 'BAI DISTRIBUTION': return renderBAIHistogram();
+    case 'AVG BMI BY AGE': return renderAvgBMIByAge();
+    case 'AGE VS BMI + TREND': return renderAgeVSBMI();
+    case 'RISK DISPARITY': return renderRiskDisparity();
+    default: return null;
+  }
+};
+
+export default Charts;
