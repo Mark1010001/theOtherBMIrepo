@@ -44,6 +44,11 @@ class User(BaseModel):
     full_name: Optional[str] = None
     is_guest: bool = False
 
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    full_name: Optional[str] = None
+
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     payload = decode_token(token)
     if payload is None:
