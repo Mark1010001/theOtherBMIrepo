@@ -30,9 +30,22 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 def decode_token(token: str) -> Optional[dict]:
     try:
         decoded_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return decoded_token if decoded_token["exp"] >= datetime.now(timezone.utc).timestamp() else None
+        exp = decoded_token.get("exp")
+        if exp is None:
+            return None
+        return decoded_token if exp >= datetime.now(timezone.utc).timestamp() else None
     except:
         return None
+
+def register_user(username: str, full_name: str, password: str) -> bool:
+    if username in USER_DB:
+        return False
+    USER_DB[username] = {
+        "username": username,
+        "full_name": full_name,
+        "hashed_password": get_password_hash(password),
+    }
+    return True
 
 # Simple User Database (In-memory for this example)
 # Default user: admin / admin123
