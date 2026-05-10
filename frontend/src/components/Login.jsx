@@ -2,10 +2,28 @@ import React, { useState } from 'react';
 import axios from 'axios';
 
 const Login = ({ onLoginSuccess }) => {
+  const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleGuestLogin = async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const response = await axios.post('http://localhost:8000/api/auth/guest');
+      const { access_token } = response.data;
+      localStorage.setItem('token', access_token);
+      onLoginSuccess(access_token);
+    } catch (err) {
+      setError('Guest access failed');
+      console.error('Guest login error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -13,18 +31,38 @@ const Login = ({ onLoginSuccess }) => {
     setError('');
 
     try {
-      const formData = new FormData();
-      formData.append('username', username);
-      formData.append('password', password);
+      if (isLogin) {
+        const formData = new FormData();
+        formData.append('username', username);
+        formData.append('password', password);
 
-      const response = await axios.post('http://localhost:8000/api/auth/login', formData);
-      const { access_token } = response.data;
+        const response = await axios.post('http://localhost:8000/api/auth/login', formData);
+        const { access_token } = response.data;
 
-      localStorage.setItem('token', access_token);
-      onLoginSuccess(access_token);
+        localStorage.setItem('token', access_token);
+        onLoginSuccess(access_token);
+      } else {
+        // Signup
+        await axios.post('http://localhost:8000/api/auth/signup', {
+          username,
+          password,
+          full_name: fullName
+        });
+
+        // Auto login after signup
+        const formData = new FormData();
+        formData.append('username', username);
+        formData.append('password', password);
+
+        const response = await axios.post('http://localhost:8000/api/auth/login', formData);
+        const { access_token } = response.data;
+
+        localStorage.setItem('token', access_token);
+        onLoginSuccess(access_token);
+      }
     } catch (err) {
-      setError('Invalid username or password');
-      console.error('Login error:', err);
+      setError(isLogin ? 'Invalid username or password' : (err.response?.data?.detail || 'Registration failed'));
+      console.error('Auth error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -44,6 +82,22 @@ const Login = ({ onLoginSuccess }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {!isLogin && (
+            <div>
+              <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 ml-1">
+                Full Name
+              </label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full bg-bg-input border border-border-dim rounded-lg px-4 py-3 text-text-main text-sm focus:border-brand focus:ring-1 focus:ring-brand outline-none transition-all"
+                placeholder="Enter your full name"
+                required
+              />
+            </div>
+          )}
+
           <div>
             <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 ml-1">
               Username
@@ -83,9 +137,36 @@ const Login = ({ onLoginSuccess }) => {
             disabled={isLoading}
             className="w-full bg-brand hover:bg-[#e6ff33] disabled:bg-[#444] disabled:cursor-not-allowed text-black font-black uppercase tracking-widest py-4 rounded-lg shadow-lg transform transition-all active:scale-[0.98] mt-4"
           >
-            {isLoading ? 'Authenticating...' : 'Sign In'}
+            {isLoading ? 'Authenticating...' : (isLogin ? 'Sign In' : 'Create Account')}
+          </button>
+
+          <div className="relative py-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border-dim"></div>
+            </div>
+            <div className="relative flex justify-center text-[10px] uppercase font-bold">
+              <span className="bg-bg-card px-2 text-text-muted">Or continue with</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGuestLogin}
+            disabled={isLoading}
+            className="w-full bg-bg-input hover:bg-border-dim border border-border-dim text-text-main font-bold uppercase tracking-widest py-3 rounded-lg transition-all active:scale-[0.98]"
+          >
+            Guest Access
           </button>
         </form>
+
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => setIsLogin(!isLogin)}
+            className="text-text-dim hover:text-brand text-xs font-bold uppercase tracking-wider transition-colors"
+          >
+            {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+          </button>
+        </div>
 
         <div className="mt-8 pt-8 border-t border-border-dim flex justify-between items-center">
           <div className="flex gap-2">

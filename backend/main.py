@@ -25,6 +25,7 @@ from config.constants import (
 from utils.advice import HEALTH_ADVICE
 from utils.auth import (
     verify_password,
+    get_password_hash,
     create_access_token,
     decode_token,
     USER_DB
@@ -42,6 +43,11 @@ class User(BaseModel):
     username: str
     full_name: Optional[str] = None
 
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    full_name: Optional[str] = None
+
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     payload = decode_token(token)
     if payload is None:
@@ -51,6 +57,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     username: str = payload.get("sub")
+    if username == "guest":
+        return User(username="guest", full_name="Guest User")
     if username is None or username not in USER_DB:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -86,6 +94,21 @@ class CalculationResult(BaseModel):
     risk_data: Dict[str, Any]
     age_band: str
 
+@app.post("/api/auth/signup", response_model=User)
+async def signup(user: UserCreate):
+    if user.username in USER_DB:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already registered"
+        )
+    hashed_password = get_password_hash(user.password)
+    USER_DB[user.username] = {
+        "username": user.username,
+        "full_name": user.full_name,
+        "hashed_password": hashed_password
+    }
+    return User(username=user.username, full_name=user.full_name)
+
 @app.post("/api/auth/login", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     user = USER_DB.get(form_data.username)
@@ -96,6 +119,11 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token = create_access_token(data={"sub": user["username"]})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/api/auth/guest", response_model=Token)
+async def guest_login():
+    access_token = create_access_token(data={"sub": "guest"})
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.get("/api/auth/me", response_model=User)
